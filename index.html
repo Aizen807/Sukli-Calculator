@@ -219,6 +219,206 @@
     color: var(--teal);
   }
 
+  /* Items quick-add */
+  .items-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
+  }
+  .items-gear{
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: rgba(244,236,216,0.7);
+    font-size: 11.5px;
+    font-weight:600;
+    padding: 6px 10px;
+    cursor:pointer;
+  }
+  .items-gear:hover{ border-color: var(--jeep-yellow); color: var(--jeep-yellow); }
+  #itemSearch{
+    width:100%;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--paper);
+    font-size: 14px;
+    padding: 10px 12px;
+    outline:none;
+    margin-bottom: 10px;
+  }
+  #itemSearch:focus{ border-color: var(--jeep-yellow); }
+  .items-list{
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .item-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 9px 4px;
+    border-bottom: 1px solid rgba(244,236,216,0.08);
+    gap: 10px;
+  }
+  .item-row:last-child{ border-bottom:none; }
+  .item-info{ min-width:0; flex:1; }
+  .item-name{
+    font-size: 13.5px;
+    color: var(--paper);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .item-price{
+    font-size: 11.5px;
+    color: rgba(244,236,216,0.5);
+    font-family:'Consolas','Courier New',monospace;
+  }
+  .item-stepper{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .step-btn{
+    width:30px; height:30px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: rgba(0,0,0,0.22);
+    color: var(--paper);
+    font-size: 16px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step-btn.plus{ background: var(--teal); color:#0f211d; border-color: var(--teal); }
+  .step-btn.plus:hover{ background:#4bb8a5; }
+  .step-btn.minus:hover{ border-color: var(--jeep-orange); color: var(--jeep-orange); }
+  .step-btn.minus:disabled{ opacity:0.25; cursor:not-allowed; }
+  .step-qty{
+    min-width:16px;
+    text-align:center;
+    font-size: 13px;
+    font-weight:700;
+    color: var(--jeep-yellow);
+    font-family:'Consolas','Courier New',monospace;
+  }
+  .items-empty{
+    display:none;
+    text-align:center;
+    font-size:12.5px;
+    color: rgba(244,236,216,0.4);
+    padding: 8px 0 2px;
+  }
+
+  /* Settings panel */
+  .settings-panel{
+    display:none;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  .settings-panel.show{ display:block; }
+  .settings-header{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color: rgba(244,236,216,0.55);
+    font-weight:700;
+    margin-bottom: 12px;
+  }
+  .settings-form{
+    display:flex;
+    gap:8px;
+    margin-bottom: 14px;
+  }
+  .settings-form input[type=text]{
+    flex:2;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--paper);
+    font-size: 13px;
+    padding: 10px 10px;
+    outline:none;
+    min-width:0;
+  }
+  .settings-form input[type=number]{
+    flex:1;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--paper);
+    font-size: 13px;
+    padding: 10px 10px;
+    outline:none;
+    min-width:0;
+    font-family:'Consolas','Courier New',monospace;
+  }
+  .settings-form input:focus{ border-color: var(--jeep-yellow); }
+  .settings-form button{
+    background: var(--jeep-orange);
+    border:none;
+    border-radius: 9px;
+    color: var(--paper);
+    font-size: 12.5px;
+    font-weight:700;
+    padding: 0 14px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .settings-form button:hover{ background:#c9531f; }
+  .settings-list{
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .settings-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 8px 4px;
+    border-bottom: 1px solid rgba(244,236,216,0.08);
+    gap:10px;
+  }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row .s-info{
+    flex:1;
+    min-width:0;
+    cursor:pointer;
+  }
+  .settings-row .s-name{
+    font-size:13px;
+    color: var(--paper);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .settings-row .s-price{
+    font-size:11px;
+    color: rgba(244,236,216,0.45);
+    font-family:'Consolas','Courier New',monospace;
+  }
+  .settings-row .s-delete{
+    background:none;
+    border:1px solid var(--line);
+    border-radius:7px;
+    color: rgba(244,236,216,0.5);
+    font-size:11px;
+    padding:5px 9px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .settings-row .s-delete:hover{ border-color: var(--red); color: var(--red); }
+  .settings-empty{
+    text-align:center;
+    font-size:12px;
+    color: rgba(244,236,216,0.4);
+    padding: 6px 0;
+  }
+
   .panel{
     background: var(--panel);
     border: 1px solid var(--line);
@@ -518,6 +718,26 @@
   </div>
 
   <div class="panel">
+    <div class="items-header">
+      <label style="margin-bottom:0;">Mga Paninda</label>
+      <button type="button" class="items-gear" id="itemsSettingsBtn">⚙ Settings</button>
+    </div>
+    <input type="text" id="itemSearch" placeholder="Maghanap ng item..." autocomplete="off">
+    <div class="items-list" id="itemsList"></div>
+    <div class="items-empty" id="itemsEmpty">Wala pang naka-save na item. Pindutin ang ⚙ Settings para magdagdag.</div>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-header">Mag-manage ng Items</div>
+    <div class="settings-form">
+      <input type="text" id="newItemName" placeholder="Item Name (e.g. Coke)" autocomplete="off">
+      <input type="number" id="newItemPrice" placeholder="Price" step="0.01" min="0">
+      <button type="button" id="addItemBtn">+ Idagdag</button>
+    </div>
+    <div class="settings-list" id="settingsList"></div>
+  </div>
+
+  <div class="panel">
     <label for="fareInput">Presyo ng Binili (e.g. 15+13+24)</label>
     <div class="fare-row">
       <input type="text" id="fareInput" inputmode="decimal" placeholder="15+13+24" autocomplete="off">
@@ -598,6 +818,196 @@ function safeSum(expr){
   if(!tokens) return 0;
   return tokens.reduce((sum, t) => sum + parseFloat(t), 0);
 }
+
+function tokenizeExpr(expr){
+  if(!expr) return [];
+  const cleaned = expr.replace(/\s+/g,'');
+  return cleaned.match(/[+-]?(\d+(\.\d+)?|\.\d+)/g) || [];
+}
+
+function tokensToExpr(tokens){
+  let joined = tokens.join('');
+  if(joined.startsWith('+')) joined = joined.slice(1);
+  return joined;
+}
+
+/* ---------- Items (quick-add paninda) ---------- */
+const ITEMS_KEY = 'sukliItemsV1';
+const itemSearch = document.getElementById('itemSearch');
+const itemsList = document.getElementById('itemsList');
+const itemsEmpty = document.getElementById('itemsEmpty');
+const itemsSettingsBtn = document.getElementById('itemsSettingsBtn');
+const settingsPanel = document.getElementById('settingsPanel');
+const newItemName = document.getElementById('newItemName');
+const newItemPrice = document.getElementById('newItemPrice');
+const addItemBtn = document.getElementById('addItemBtn');
+const settingsList = document.getElementById('settingsList');
+let editingItemId = null;
+
+function loadItems(){
+  try{
+    const items = JSON.parse(localStorage.getItem(ITEMS_KEY));
+    return Array.isArray(items) ? items : [];
+  } catch(e){ return []; }
+}
+
+function saveItems(items){
+  try{ localStorage.setItem(ITEMS_KEY, JSON.stringify(items)); } catch(e){}
+}
+
+function itemQtyInExpr(price){
+  const tokens = tokenizeExpr(fareInput.value);
+  return tokens.filter(t => Math.abs(parseFloat(t) - price) < 0.001).length;
+}
+
+function addItemTerm(price){
+  const tokens = tokenizeExpr(fareInput.value);
+  tokens.push('+' + price);
+  fareInput.value = tokensToExpr(tokens);
+  update();
+  renderItems();
+}
+
+function removeItemTerm(price){
+  const tokens = tokenizeExpr(fareInput.value);
+  for(let i = tokens.length - 1; i >= 0; i--){
+    if(Math.abs(parseFloat(tokens[i]) - price) < 0.001){
+      tokens.splice(i, 1);
+      break;
+    }
+  }
+  fareInput.value = tokensToExpr(tokens);
+  update();
+  renderItems();
+}
+
+function renderItems(){
+  const items = loadItems();
+  const q = itemSearch.value.trim().toLowerCase();
+  const filtered = q ? items.filter(it => it.name.toLowerCase().includes(q)) : items;
+
+  if(items.length === 0){
+    itemsList.innerHTML = '';
+    itemsEmpty.style.display = 'block';
+    itemsEmpty.textContent = 'Wala pang naka-save na item. Pindutin ang ⚙ Settings para magdagdag.';
+    return;
+  }
+  if(filtered.length === 0){
+    itemsList.innerHTML = '';
+    itemsEmpty.style.display = 'block';
+    itemsEmpty.textContent = 'Walang nahanap na item.';
+    return;
+  }
+  itemsEmpty.style.display = 'none';
+
+  itemsList.innerHTML = filtered.map(it => {
+    const qty = itemQtyInExpr(it.price);
+    return `<div class="item-row">
+      <div class="item-info">
+        <div class="item-name">${escapeHtml(it.name)}</div>
+        <div class="item-price">${peso(it.price)}</div>
+      </div>
+      <div class="item-stepper">
+        <button type="button" class="step-btn minus" data-price="${it.price}" ${qty === 0 ? 'disabled' : ''}>−</button>
+        <span class="step-qty">${qty}</span>
+        <button type="button" class="step-btn plus" data-price="${it.price}">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+itemsList.addEventListener('click', (e) => {
+  const btn = e.target.closest('.step-btn');
+  if(!btn) return;
+  const price = parseFloat(btn.dataset.price);
+  if(btn.classList.contains('plus')) addItemTerm(price);
+  else removeItemTerm(price);
+});
+
+itemSearch.addEventListener('input', renderItems);
+
+itemsSettingsBtn.addEventListener('click', () => {
+  settingsPanel.classList.toggle('show');
+  if(settingsPanel.classList.contains('show')) renderSettingsList();
+});
+
+function renderSettingsList(){
+  const items = loadItems();
+  if(items.length === 0){
+    settingsList.innerHTML = '<div class="settings-empty">Wala pang item.</div>';
+    return;
+  }
+  settingsList.innerHTML = items.map(it =>
+    `<div class="settings-row">
+      <div class="s-info" data-id="${it.id}">
+        <div class="s-name">${escapeHtml(it.name)}</div>
+        <div class="s-price">${peso(it.price)}</div>
+      </div>
+      <button type="button" class="s-delete" data-id="${it.id}">🗑</button>
+    </div>`
+  ).join('');
+}
+
+addItemBtn.addEventListener('click', () => {
+  const name = newItemName.value.trim();
+  const price = parseFloat(newItemPrice.value);
+  if(!name || isNaN(price) || price <= 0){
+    showFlash('Kumpletuhin ang Item Name at Price');
+    return;
+  }
+  const items = loadItems();
+  if(editingItemId){
+    const idx = items.findIndex(it => it.id === editingItemId);
+    if(idx >= 0){ items[idx] = { id: editingItemId, name, price }; }
+    editingItemId = null;
+    addItemBtn.textContent = '+ Idagdag';
+  } else {
+    items.push({ id: 'i' + Date.now(), name, price });
+  }
+  saveItems(items);
+  newItemName.value = '';
+  newItemPrice.value = '';
+  renderSettingsList();
+  renderItems();
+});
+
+settingsList.addEventListener('click', (e) => {
+  const delBtn = e.target.closest('.s-delete');
+  if(delBtn){
+    const id = delBtn.dataset.id;
+    let items = loadItems();
+    items = items.filter(it => it.id !== id);
+    saveItems(items);
+    if(editingItemId === id){
+      editingItemId = null;
+      newItemName.value = '';
+      newItemPrice.value = '';
+      addItemBtn.textContent = '+ Idagdag';
+    }
+    renderSettingsList();
+    renderItems();
+    return;
+  }
+  const info = e.target.closest('.s-info');
+  if(info){
+    const id = info.dataset.id;
+    const items = loadItems();
+    const it = items.find(x => x.id === id);
+    if(it){
+      editingItemId = id;
+      newItemName.value = it.name;
+      newItemPrice.value = it.price;
+      addItemBtn.textContent = '✓ I-update';
+      newItemName.focus();
+    }
+  }
+});
 
 function breakdownChange(amountCentavos){
   // amountCentavos: integer centavos to keep it exact
@@ -707,7 +1117,7 @@ quickGrid.addEventListener('click', (e) => {
   update();
 });
 
-fareInput.addEventListener('input', update);
+fareInput.addEventListener('input', () => { update(); renderItems(); });
 cashInput.addEventListener('input', () => { markSelected(parseFloat(cashInput.value)); update(); });
 
 /* ---------- Reset / Complete Sale ---------- */
@@ -720,6 +1130,7 @@ function clearForm(){
   cashInput.value = '';
   markSelected(null);
   update();
+  renderItems();
 }
 
 function showFlash(text){
@@ -882,6 +1293,7 @@ sessionClearBtn.addEventListener('click', () => {
 });
 
 renderSession();
+renderItems();
 
 update();
 
