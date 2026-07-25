@@ -244,6 +244,50 @@
     margin-top: 18px;
   }
 
+  .action-row{
+    display:flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .action-btn{
+    flex:1;
+    border:none;
+    border-radius: 12px;
+    padding: 13px 10px;
+    font-size: 13.5px;
+    font-weight:700;
+    letter-spacing:.01em;
+    cursor:pointer;
+    transition: background .15s, transform .08s, opacity .15s;
+  }
+  .action-btn:active{ transform: scale(0.97); }
+  .reset-btn{
+    background: rgba(244,236,216,0.08);
+    border: 1px solid var(--line);
+    color: rgba(244,236,216,0.75);
+  }
+  .reset-btn:hover{ background: rgba(244,236,216,0.14); }
+  .done-btn{
+    background: var(--teal);
+    color: #0f211d;
+  }
+  .done-btn:hover{ background:#4bb8a5; }
+  .done-btn:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  .flash-msg{
+    text-align:center;
+    font-size:12.5px;
+    font-weight:700;
+    color: var(--jeep-yellow);
+    margin-top: 10px;
+    height: 16px;
+    opacity:0;
+    transition: opacity .2s;
+  }
+  .flash-msg.show{ opacity:1; }
+
   .install-btn{
     display:none;
     width:100%;
@@ -285,12 +329,12 @@
 <body>
 <div class="wrap">
 
-  <div class="eyebrow">Para / Sukli</div>
+  <div class="eyebrow">Tindahan / Sukli</div>
   <h1>Sukli Calculator</h1>
-  <div class="sub">Itype ang mga pamasahe, ilagay ang bayad, otomatikong lalabas ang sukli.</div>
+  <div class="sub">Itype ang mga presyo ng binili, ilagay ang bayad, otomatikong lalabas ang sukli.</div>
 
   <div class="panel">
-    <label for="fareInput">Pamasahe (e.g. 15+13+24)</label>
+    <label for="fareInput">Presyo ng Binili (e.g. 15+13+24)</label>
     <div class="fare-row">
       <input type="text" id="fareInput" inputmode="decimal" placeholder="15+13+24" autocomplete="off">
     </div>
@@ -305,7 +349,7 @@
 
   <div class="resibo">
     <div class="title">Resibo</div>
-    <div class="line"><span>Total Pamasahe</span><span id="rTotal">₱0.00</span></div>
+    <div class="line"><span>Kabuuang Bili</span><span id="rTotal">₱0.00</span></div>
     <div class="line"><span>Binayad</span><span id="rCash">₱0.00</span></div>
     <hr class="rule">
     <div class="sukli-block">
@@ -321,7 +365,13 @@
     </div>
   </div>
 
-  <div class="footer-note">Gamitin ang + para sa dagdag na pasahero &middot; halimbawa: 15+13+24</div>
+  <div class="action-row">
+    <button type="button" class="action-btn reset-btn" id="resetBtn">↺ I-reset</button>
+    <button type="button" class="action-btn done-btn" id="doneBtn" disabled>✓ Tapos na (Bagong Benta)</button>
+  </div>
+  <div class="flash-msg" id="flashMsg"></div>
+
+  <div class="footer-note">Gamitin ang + para sa dagdag na binili &middot; halimbawa: 15+13+24</div>
 
   <button type="button" class="install-btn" id="installBtn"><span class="icon">⬇</span> I-install ang App</button>
   <div class="ios-toast" id="iosToast">
@@ -408,6 +458,7 @@ function update(){
     sukliAmount.classList.remove('short');
     statusMsg.textContent = '';
     breakdownBlock.style.display = 'none';
+    doneBtn.disabled = true;
     return;
   }
 
@@ -418,6 +469,7 @@ function update(){
     statusMsg.textContent = 'KULANG NG ' + peso(-diff);
     statusMsg.className = 'status short';
     breakdownBlock.style.display = 'none';
+    doneBtn.disabled = true;
   } else if(diffCentavos === 0){
     sukliLabel.textContent = 'Sukli';
     sukliAmount.textContent = '₱0.00';
@@ -425,12 +477,14 @@ function update(){
     statusMsg.textContent = 'SAKTO';
     statusMsg.className = 'status exact';
     breakdownBlock.style.display = 'none';
+    doneBtn.disabled = false;
   } else {
     sukliLabel.textContent = 'Sukli';
     sukliAmount.textContent = peso(diff);
     sukliAmount.classList.remove('short');
     statusMsg.textContent = 'MAY SUKLI';
     statusMsg.className = 'status ok';
+    doneBtn.disabled = false;
 
     const rows = breakdownChange(diffCentavos);
     if(rows.length){
@@ -471,6 +525,37 @@ quickGrid.addEventListener('click', (e) => {
 
 fareInput.addEventListener('input', update);
 cashInput.addEventListener('input', () => { markSelected(parseFloat(cashInput.value)); update(); });
+
+/* ---------- Reset / Complete Sale ---------- */
+const resetBtn = document.getElementById('resetBtn');
+const doneBtn = document.getElementById('doneBtn');
+const flashMsg = document.getElementById('flashMsg');
+
+function clearForm(){
+  fareInput.value = '';
+  cashInput.value = '';
+  markSelected(null);
+  update();
+}
+
+function showFlash(text){
+  flashMsg.textContent = text;
+  flashMsg.classList.add('show');
+  setTimeout(() => flashMsg.classList.remove('show'), 1400);
+}
+
+resetBtn.addEventListener('click', () => {
+  clearForm();
+  showFlash('Na-reset');
+});
+
+doneBtn.addEventListener('click', () => {
+  if(doneBtn.disabled) return;
+  showFlash('Sale complete — bagong benta');
+  clearForm();
+  fareInput.focus();
+});
+
 update();
 
 /* ---------- PWA support ---------- */
