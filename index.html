@@ -97,6 +97,11 @@
     white-space:nowrap;
   }
   .session-clear:hover{ border-color: var(--jeep-yellow); color: var(--jeep-yellow); }
+  .session-btns{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
   .session-amount{
     font-family:'Consolas','Courier New',monospace;
     font-size: 34px;
@@ -132,6 +137,85 @@
   .log-row .log-amount{
     font-family:'Consolas','Courier New',monospace;
     font-weight:700;
+    color: var(--teal);
+  }
+
+  .history-panel{
+    display:none;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  .history-panel.show{ display:block; }
+  .history-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color: rgba(244,236,216,0.55);
+    font-weight:700;
+    margin-bottom: 10px;
+  }
+  .history-clear{
+    background:none;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    color: rgba(244,236,216,0.5);
+    font-size: 10.5px;
+    text-transform:none;
+    letter-spacing:normal;
+    font-weight:600;
+    padding: 4px 8px;
+    cursor:pointer;
+  }
+  .history-clear:hover{ border-color: var(--red); color: var(--red); }
+  .history-list{
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .history-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(244,236,216,0.08);
+  }
+  .history-row:last-child{ border-bottom:none; }
+  .history-row .h-date{
+    font-size: 13px;
+    color: rgba(244,236,216,0.85);
+  }
+  .history-row .h-count{
+    font-size: 11px;
+    color: rgba(244,236,216,0.4);
+    display:block;
+    margin-top:1px;
+  }
+  .history-row .h-amount{
+    font-family:'Consolas','Courier New',monospace;
+    font-weight:700;
+    font-size: 15px;
+    color: var(--jeep-yellow);
+  }
+  .history-empty{
+    display:none;
+    text-align:center;
+    font-size:12.5px;
+    color: rgba(244,236,216,0.4);
+    padding: 10px 0 4px;
+  }
+  .history-total-row{
+    display:flex;
+    justify-content:space-between;
+    font-size: 13px;
+    font-weight:700;
+    padding: 10px 0 2px;
+    margin-top: 6px;
+    border-top: 1px solid rgba(244,236,216,0.14);
     color: var(--teal);
   }
 
@@ -414,11 +498,23 @@
         <div class="session-label">Kita Ngayong Araw</div>
         <div class="session-date" id="sessionDate">—</div>
       </div>
-      <button type="button" class="session-clear" id="sessionClearBtn">Bagong Araw</button>
+      <div class="session-btns">
+        <button type="button" class="session-clear" id="historyToggleBtn">📅 Kasaysayan</button>
+        <button type="button" class="session-clear" id="sessionClearBtn">Bagong Araw</button>
+      </div>
     </div>
     <div class="session-amount" id="sessionTotal">₱0.00</div>
     <div class="session-count" id="sessionCount">0 na benta</div>
     <div class="session-log" id="sessionLog"></div>
+  </div>
+
+  <div class="history-panel" id="historyPanel">
+    <div class="history-header">
+      <span>Nakaraang mga Araw</span>
+      <button type="button" class="history-clear" id="historyClearBtn">I-clear</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+    <div class="history-empty" id="historyEmpty">Wala pang naitalang araw.</div>
   </div>
 
   <div class="panel">
@@ -668,6 +764,9 @@ function loadSession(){
     data = JSON.parse(localStorage.getItem(SESSION_KEY));
   } catch(e){ data = null; }
   if(!data || data.date !== todayKey()){
+    if(data && data.count > 0){
+      archiveDay(data);
+    }
     data = { date: todayKey(), totalCentavos: 0, count: 0, entries: [] };
     saveSession(data);
   }
@@ -678,6 +777,71 @@ function loadSession(){
 function saveSession(data){
   try{ localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e){}
 }
+
+/* ---------- History (past days) ---------- */
+const HISTORY_KEY = 'sukliHistoryV1';
+const historyPanel = document.getElementById('historyPanel');
+const historyToggleBtn = document.getElementById('historyToggleBtn');
+const historyList = document.getElementById('historyList');
+const historyEmpty = document.getElementById('historyEmpty');
+const historyClearBtn = document.getElementById('historyClearBtn');
+
+function loadHistory(){
+  try{
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY));
+    return Array.isArray(h) ? h : [];
+  } catch(e){ return []; }
+}
+
+function saveHistory(h){
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch(e){}
+}
+
+function archiveDay(data){
+  const history = loadHistory();
+  const existingIdx = history.findIndex(d => d.date === data.date);
+  const entry = { date: data.date, totalCentavos: data.totalCentavos, count: data.count };
+  if(existingIdx >= 0){ history[existingIdx] = entry; } else { history.push(entry); }
+  history.sort((a,b) => a.date < b.date ? 1 : -1);
+  saveHistory(history.slice(0, 60));
+}
+
+function dateLabelFromKey(key){
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return dt.toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric' });
+}
+
+function renderHistory(){
+  const history = loadHistory();
+  if(history.length === 0){
+    historyList.innerHTML = '';
+    historyEmpty.style.display = 'block';
+    return;
+  }
+  historyEmpty.style.display = 'none';
+  const grandTotal = history.reduce((s,d) => s + d.totalCentavos, 0);
+  historyList.innerHTML = history.map(d =>
+    `<div class="history-row">
+       <div>
+         <div class="h-date">${dateLabelFromKey(d.date)}</div>
+         <span class="h-count">${d.count} na benta</span>
+       </div>
+       <div class="h-amount">${peso(d.totalCentavos/100)}</div>
+     </div>`
+  ).join('') + `<div class="history-total-row"><span>Kabuuan (${history.length} araw)</span><span>${peso(grandTotal/100)}</span></div>`;
+}
+
+historyToggleBtn.addEventListener('click', () => {
+  renderHistory();
+  historyPanel.classList.toggle('show');
+});
+
+historyClearBtn.addEventListener('click', () => {
+  if(!confirm('I-clear ang buong kasaysayan ng mga nakaraang araw? Hindi na ito mababawi.')) return;
+  saveHistory([]);
+  renderHistory();
+});
 
 const sessionLogEl = document.getElementById('sessionLog');
 
@@ -708,6 +872,10 @@ function addToSession(fareTotal){
 
 sessionClearBtn.addEventListener('click', () => {
   if(!confirm('I-clear ang kabuuang kita ngayong araw?')) return;
+  const current = loadSession();
+  if(current.count > 0){
+    archiveDay(current);
+  }
   saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [] });
   renderSession();
   showFlash('Bagong araw simula');
