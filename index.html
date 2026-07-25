@@ -60,6 +60,81 @@
     margin-bottom: 22px;
   }
 
+  .session-card{
+    background: linear-gradient(135deg, rgba(63,167,150,0.16), rgba(242,177,52,0.08));
+    border: 1px solid rgba(63,167,150,0.35);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  .session-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom: 6px;
+  }
+  .session-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color: rgba(244,236,216,0.6);
+    font-weight:700;
+  }
+  .session-date{
+    font-size:11px;
+    color: rgba(244,236,216,0.4);
+    margin-top:2px;
+  }
+  .session-clear{
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: rgba(244,236,216,0.7);
+    font-size: 11px;
+    font-weight:600;
+    padding: 6px 10px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .session-clear:hover{ border-color: var(--jeep-yellow); color: var(--jeep-yellow); }
+  .session-amount{
+    font-family:'Consolas','Courier New',monospace;
+    font-size: 34px;
+    font-weight:700;
+    color: var(--teal);
+    letter-spacing:-0.02em;
+  }
+  .session-count{
+    font-size:12px;
+    color: rgba(244,236,216,0.55);
+    margin-top: 2px;
+  }
+  .session-log{
+    margin-top: 10px;
+    max-height: 140px;
+    overflow-y: auto;
+  }
+  .session-log:not(:empty){
+    border-top: 1px solid rgba(244,236,216,0.12);
+    padding-top: 8px;
+  }
+  .log-row{
+    display:flex;
+    justify-content:space-between;
+    font-size: 12px;
+    padding: 3px 0;
+    color: rgba(244,236,216,0.7);
+  }
+  .log-row .log-time{
+    color: rgba(244,236,216,0.4);
+    font-family:'Consolas','Courier New',monospace;
+  }
+  .log-row .log-amount{
+    font-family:'Consolas','Courier New',monospace;
+    font-weight:700;
+    color: var(--teal);
+  }
+
   .panel{
     background: var(--panel);
     border: 1px solid var(--line);
@@ -333,6 +408,19 @@
   <h1>Sukli Calculator</h1>
   <div class="sub">Itype ang mga presyo ng binili, ilagay ang bayad, otomatikong lalabas ang sukli.</div>
 
+  <div class="session-card">
+    <div class="session-top">
+      <div>
+        <div class="session-label">Kita Ngayong Araw</div>
+        <div class="session-date" id="sessionDate">—</div>
+      </div>
+      <button type="button" class="session-clear" id="sessionClearBtn">Bagong Araw</button>
+    </div>
+    <div class="session-amount" id="sessionTotal">₱0.00</div>
+    <div class="session-count" id="sessionCount">0 na benta</div>
+    <div class="session-log" id="sessionLog"></div>
+  </div>
+
   <div class="panel">
     <label for="fareInput">Presyo ng Binili (e.g. 15+13+24)</label>
     <div class="fare-row">
@@ -551,10 +639,81 @@ resetBtn.addEventListener('click', () => {
 
 doneBtn.addEventListener('click', () => {
   if(doneBtn.disabled) return;
+  addToSession(safeSum(fareInput.value) || 0);
   showFlash('Sale complete — bagong benta');
   clearForm();
   fareInput.focus();
 });
+
+/* ---------- Session Total (today's earnings) ---------- */
+const sessionTotalEl = document.getElementById('sessionTotal');
+const sessionCountEl = document.getElementById('sessionCount');
+const sessionDateEl = document.getElementById('sessionDate');
+const sessionClearBtn = document.getElementById('sessionClearBtn');
+const SESSION_KEY = 'sukliSessionV1';
+
+function todayKey(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function todayLabel(){
+  const d = new Date();
+  return d.toLocaleDateString('en-PH', { weekday:'long', month:'short', day:'numeric' });
+}
+
+function loadSession(){
+  let data;
+  try{
+    data = JSON.parse(localStorage.getItem(SESSION_KEY));
+  } catch(e){ data = null; }
+  if(!data || data.date !== todayKey()){
+    data = { date: todayKey(), totalCentavos: 0, count: 0, entries: [] };
+    saveSession(data);
+  }
+  if(!data.entries) data.entries = [];
+  return data;
+}
+
+function saveSession(data){
+  try{ localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch(e){}
+}
+
+const sessionLogEl = document.getElementById('sessionLog');
+
+function renderSession(){
+  const data = loadSession();
+  sessionTotalEl.textContent = peso(data.totalCentavos / 100);
+  sessionCountEl.textContent = data.count + (data.count === 1 ? ' na benta' : ' na benta');
+  sessionDateEl.textContent = todayLabel();
+
+  const entries = data.entries.slice(-20).reverse();
+  sessionLogEl.innerHTML = entries.map(en =>
+    `<div class="log-row"><span class="log-time">${en.time}</span><span class="log-amount">${peso(en.amountCentavos/100)}</span></div>`
+  ).join('');
+}
+
+function addToSession(fareTotal){
+  const data = loadSession();
+  const amountCentavos = Math.round(fareTotal * 100);
+  data.totalCentavos += amountCentavos;
+  data.count += 1;
+  data.entries.push({
+    time: new Date().toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' }),
+    amountCentavos: amountCentavos
+  });
+  saveSession(data);
+  renderSession();
+}
+
+sessionClearBtn.addEventListener('click', () => {
+  if(!confirm('I-clear ang kabuuang kita ngayong araw?')) return;
+  saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [] });
+  renderSession();
+  showFlash('Bagong araw simula');
+});
+
+renderSession();
 
 update();
 
