@@ -1,7 +1,7 @@
 {
   "name": "Sukli Calculator",
   "short_name": "Sukli",
-  "description": "Fare total and change calculator for sari-sari store / jeepney use",
+  "description": "Store purchase total and change calculator for sari-sari store use",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
