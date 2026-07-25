@@ -249,6 +249,29 @@
     margin-bottom: 10px;
   }
   #itemSearch:focus{ border-color: var(--jeep-yellow); }
+  .type-chip-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-bottom: 10px;
+  }
+  .type-chip{
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    color: rgba(244,236,216,0.6);
+    font-size: 11px;
+    font-weight:600;
+    padding: 5px 12px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .type-chip:hover{ border-color: var(--jeep-yellow); }
+  .type-chip.active{
+    background: var(--jeep-yellow);
+    color: var(--ink);
+    border-color: var(--jeep-yellow);
+  }
   .items-list{
     max-height: 280px;
     overflow-y: auto;
@@ -262,6 +285,15 @@
     gap: 10px;
   }
   .item-row:last-child{ border-bottom:none; }
+  .item-type-header{
+    font-size: 10.5px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color: var(--jeep-yellow);
+    font-weight:700;
+    padding: 12px 4px 6px;
+  }
+  .item-type-header:first-child{ padding-top:2px; }
   .item-info{ min-width:0; flex:1; }
   .item-name{
     font-size: 13.5px;
@@ -335,6 +367,27 @@
     gap:8px;
     margin-bottom: 14px;
   }
+  .settings-form-stack{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .settings-form-stack > #newItemType{
+    width:100%;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--jeep-yellow);
+    font-size: 12.5px;
+    font-weight:700;
+    padding: 9px 10px;
+    outline:none;
+  }
+  .settings-form-stack > #newItemType:focus{ border-color: var(--jeep-yellow); }
+  .settings-form-row{
+    display:flex;
+    gap:8px;
+  }
   .settings-form input[type=text]{
     flex:2;
     background: rgba(0,0,0,0.22);
@@ -400,6 +453,15 @@
     font-size:11px;
     color: rgba(244,236,216,0.45);
     font-family:'Consolas','Courier New',monospace;
+  }
+  .settings-row .s-type{
+    display:inline-block;
+    font-size: 10px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color: var(--jeep-yellow);
+    font-weight:700;
+    margin-right:6px;
   }
   .settings-row .s-delete{
     background:none;
@@ -723,16 +785,21 @@
       <button type="button" class="items-gear" id="itemsSettingsBtn">⚙ Settings</button>
     </div>
     <input type="text" id="itemSearch" placeholder="Maghanap ng item..." autocomplete="off">
+    <div class="type-chip-row" id="typeChipRow"></div>
     <div class="items-list" id="itemsList"></div>
     <div class="items-empty" id="itemsEmpty">Wala pang naka-save na item. Pindutin ang ⚙ Settings para magdagdag.</div>
   </div>
 
   <div class="settings-panel" id="settingsPanel">
     <div class="settings-header">Mag-manage ng Items</div>
-    <div class="settings-form">
-      <input type="text" id="newItemName" placeholder="Item Name (e.g. Coke)" autocomplete="off">
-      <input type="number" id="newItemPrice" placeholder="Price" step="0.01" min="0">
-      <button type="button" id="addItemBtn">+ Idagdag</button>
+    <div class="settings-form settings-form-stack">
+      <input type="text" id="newItemType" list="itemTypesList" placeholder="Item Type (e.g. Sigarilyo)" autocomplete="off">
+      <datalist id="itemTypesList"></datalist>
+      <div class="settings-form-row">
+        <input type="text" id="newItemName" placeholder="Item Name (e.g. Winston)" autocomplete="off">
+        <input type="number" id="newItemPrice" placeholder="Price" step="0.01" min="0">
+        <button type="button" id="addItemBtn">+ Idagdag</button>
+      </div>
     </div>
     <div class="settings-list" id="settingsList"></div>
   </div>
@@ -833,21 +900,28 @@ function tokensToExpr(tokens){
 
 /* ---------- Items (quick-add paninda) ---------- */
 const ITEMS_KEY = 'sukliItemsV1';
+const DEFAULT_TYPE = 'Iba pa';
 const itemSearch = document.getElementById('itemSearch');
 const itemsList = document.getElementById('itemsList');
 const itemsEmpty = document.getElementById('itemsEmpty');
 const itemsSettingsBtn = document.getElementById('itemsSettingsBtn');
 const settingsPanel = document.getElementById('settingsPanel');
+const newItemType = document.getElementById('newItemType');
+const itemTypesList = document.getElementById('itemTypesList');
 const newItemName = document.getElementById('newItemName');
 const newItemPrice = document.getElementById('newItemPrice');
 const addItemBtn = document.getElementById('addItemBtn');
 const settingsList = document.getElementById('settingsList');
+const typeChipRow = document.getElementById('typeChipRow');
 let editingItemId = null;
+let activeTypeFilter = null; // null = Lahat (all)
 
 function loadItems(){
   try{
     const items = JSON.parse(localStorage.getItem(ITEMS_KEY));
-    return Array.isArray(items) ? items : [];
+    if(!Array.isArray(items)) return [];
+    // migrate any items saved before Item Type existed
+    return items.map(it => ({ ...it, type: it.type && it.type.trim() ? it.type : DEFAULT_TYPE }));
   } catch(e){ return []; }
 }
 
@@ -881,10 +955,33 @@ function removeItemTerm(price){
   renderItems();
 }
 
+function getDistinctTypes(items){
+  const types = [...new Set(items.map(it => it.type))];
+  return types.sort((a,b) => a.localeCompare(b));
+}
+
+function renderTypeChips(items){
+  const types = getDistinctTypes(items);
+  if(types.length <= 1){
+    typeChipRow.innerHTML = '';
+    typeChipRow.style.display = 'none';
+    return;
+  }
+  typeChipRow.style.display = 'flex';
+  const chips = [{ label: 'Lahat', value: null }, ...types.map(t => ({ label: t, value: t }))];
+  typeChipRow.innerHTML = chips.map(c =>
+    `<button type="button" class="type-chip ${activeTypeFilter === c.value ? 'active' : ''}" data-type="${c.value === null ? '' : escapeHtml(c.value)}">${escapeHtml(c.label)}</button>`
+  ).join('');
+}
+
 function renderItems(){
   const items = loadItems();
+  renderTypeChips(items);
+
   const q = itemSearch.value.trim().toLowerCase();
-  const filtered = q ? items.filter(it => it.name.toLowerCase().includes(q)) : items;
+  let filtered = items;
+  if(activeTypeFilter) filtered = filtered.filter(it => it.type === activeTypeFilter);
+  if(q) filtered = filtered.filter(it => it.name.toLowerCase().includes(q));
 
   if(items.length === 0){
     itemsList.innerHTML = '';
@@ -900,20 +997,29 @@ function renderItems(){
   }
   itemsEmpty.style.display = 'none';
 
-  itemsList.innerHTML = filtered.map(it => {
-    const qty = itemQtyInExpr(it.price);
-    return `<div class="item-row">
-      <div class="item-info">
-        <div class="item-name">${escapeHtml(it.name)}</div>
-        <div class="item-price">${peso(it.price)}</div>
-      </div>
-      <div class="item-stepper">
-        <button type="button" class="step-btn minus" data-price="${it.price}" ${qty === 0 ? 'disabled' : ''}>−</button>
-        <span class="step-qty">${qty}</span>
-        <button type="button" class="step-btn plus" data-price="${it.price}">+</button>
-      </div>
-    </div>`;
-  }).join('');
+  // group by type, preserving alphabetical type order
+  const types = getDistinctTypes(filtered);
+  let html = '';
+  for(const type of types){
+    const group = filtered.filter(it => it.type === type);
+    if(group.length === 0) continue;
+    html += `<div class="item-type-header">${escapeHtml(type)}</div>`;
+    html += group.map(it => {
+      const qty = itemQtyInExpr(it.price);
+      return `<div class="item-row">
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(it.name)}</div>
+          <div class="item-price">${peso(it.price)}</div>
+        </div>
+        <div class="item-stepper">
+          <button type="button" class="step-btn minus" data-price="${it.price}" ${qty === 0 ? 'disabled' : ''}>−</button>
+          <span class="step-qty">${qty}</span>
+          <button type="button" class="step-btn plus" data-price="${it.price}">+</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  itemsList.innerHTML = html;
 }
 
 function escapeHtml(str){
@@ -930,6 +1036,13 @@ itemsList.addEventListener('click', (e) => {
   else removeItemTerm(price);
 });
 
+typeChipRow.addEventListener('click', (e) => {
+  const chip = e.target.closest('.type-chip');
+  if(!chip) return;
+  activeTypeFilter = chip.dataset.type || null;
+  renderItems();
+});
+
 itemSearch.addEventListener('input', renderItems);
 
 itemsSettingsBtn.addEventListener('click', () => {
@@ -937,24 +1050,39 @@ itemsSettingsBtn.addEventListener('click', () => {
   if(settingsPanel.classList.contains('show')) renderSettingsList();
 });
 
+function populateTypeDatalist(){
+  const items = loadItems();
+  const types = getDistinctTypes(items);
+  itemTypesList.innerHTML = types.map(t => `<option value="${escapeHtml(t)}"></option>`).join('');
+}
+
 function renderSettingsList(){
   const items = loadItems();
+  populateTypeDatalist();
   if(items.length === 0){
     settingsList.innerHTML = '<div class="settings-empty">Wala pang item.</div>';
     return;
   }
-  settingsList.innerHTML = items.map(it =>
-    `<div class="settings-row">
-      <div class="s-info" data-id="${it.id}">
-        <div class="s-name">${escapeHtml(it.name)}</div>
-        <div class="s-price">${peso(it.price)}</div>
-      </div>
-      <button type="button" class="s-delete" data-id="${it.id}">🗑</button>
-    </div>`
-  ).join('');
+  const types = getDistinctTypes(items);
+  let html = '';
+  for(const type of types){
+    const group = items.filter(it => it.type === type);
+    html += `<div class="item-type-header">${escapeHtml(type)}</div>`;
+    html += group.map(it =>
+      `<div class="settings-row">
+        <div class="s-info" data-id="${it.id}">
+          <div class="s-name">${escapeHtml(it.name)}</div>
+          <div class="s-price">${peso(it.price)}</div>
+        </div>
+        <button type="button" class="s-delete" data-id="${it.id}">🗑</button>
+      </div>`
+    ).join('');
+  }
+  settingsList.innerHTML = html;
 }
 
 addItemBtn.addEventListener('click', () => {
+  const type = newItemType.value.trim() || DEFAULT_TYPE;
   const name = newItemName.value.trim();
   const price = parseFloat(newItemPrice.value);
   if(!name || isNaN(price) || price <= 0){
@@ -964,13 +1092,14 @@ addItemBtn.addEventListener('click', () => {
   const items = loadItems();
   if(editingItemId){
     const idx = items.findIndex(it => it.id === editingItemId);
-    if(idx >= 0){ items[idx] = { id: editingItemId, name, price }; }
+    if(idx >= 0){ items[idx] = { id: editingItemId, name, price, type }; }
     editingItemId = null;
     addItemBtn.textContent = '+ Idagdag';
   } else {
-    items.push({ id: 'i' + Date.now(), name, price });
+    items.push({ id: 'i' + Date.now(), name, price, type });
   }
   saveItems(items);
+  newItemType.value = '';
   newItemName.value = '';
   newItemPrice.value = '';
   renderSettingsList();
@@ -986,6 +1115,7 @@ settingsList.addEventListener('click', (e) => {
     saveItems(items);
     if(editingItemId === id){
       editingItemId = null;
+      newItemType.value = '';
       newItemName.value = '';
       newItemPrice.value = '';
       addItemBtn.textContent = '+ Idagdag';
@@ -1001,10 +1131,11 @@ settingsList.addEventListener('click', (e) => {
     const it = items.find(x => x.id === id);
     if(it){
       editingItemId = id;
+      newItemType.value = it.type;
       newItemName.value = it.name;
       newItemPrice.value = it.price;
       addItemBtn.textContent = '✓ I-update';
-      newItemName.focus();
+      newItemType.focus();
     }
   }
 });
