@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sukli Calculator</title>
+<meta name="theme-color" content="#1c2b28">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sukli">
+<link rel="icon" href="icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link rel="manifest" href="manifest.json">
+<style>
+  :root{
+    --bg:#1c2b28;
+    --panel:#253934;
+    --paper:#f4ecd8;
+    --ink:#2a2118;
+    --jeep-yellow:#f2b134;
+    --jeep-orange:#e0622a;
+    --teal:#3fa796;
+    --red:#c0392b;
+    --line:rgba(244,236,216,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(242,177,52,0.10), transparent 45%),
+      radial-gradient(circle at 85% 90%, rgba(63,167,150,0.14), transparent 50%),
+      var(--bg);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--paper);
+    display:flex;
+    justify-content:center;
+    padding: 28px 14px 60px;
+  }
+  .wrap{ width:100%; max-width: 460px; }
+
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    color: var(--jeep-yellow);
+    font-weight:700;
+    margin-bottom:6px;
+  }
+  h1{
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 30px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .sub{
+    font-size:13px;
+    color: rgba(244,236,216,0.6);
+    margin-bottom: 22px;
+  }
+
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  label{
+    display:block;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color: rgba(244,236,216,0.55);
+    margin-bottom: 8px;
+    font-weight:600;
+  }
+  input[type=text], input[type=number]{
+    width:100%;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--paper);
+    font-size: 22px;
+    padding: 12px 14px;
+    font-family: 'Consolas','Courier New',monospace;
+    outline:none;
+    transition: border-color .15s;
+  }
+  input:focus{ border-color: var(--jeep-yellow); }
+
+  .fare-row{ display:flex; align-items:center; gap:10px; }
+  .equals{
+    font-family: Georgia, serif;
+    font-size:13px;
+    color: rgba(244,236,216,0.5);
+    white-space:nowrap;
+  }
+  .fare-total{
+    font-family:'Consolas','Courier New',monospace;
+    font-size: 22px;
+    font-weight:700;
+    color: var(--jeep-yellow);
+    white-space:nowrap;
+    min-width: 90px;
+    text-align:right;
+  }
+  .hint{
+    font-size:11px;
+    color: rgba(244,236,216,0.4);
+    margin-top:8px;
+  }
+
+  .quick-grid{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .quick-btn{
+    background: rgba(0,0,0,0.22);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--paper);
+    font-family: 'Consolas','Courier New',monospace;
+    font-size: 14px;
+    font-weight:700;
+    padding: 9px 4px;
+    cursor:pointer;
+    transition: background .12s, border-color .12s, transform .08s;
+  }
+  .quick-btn:hover{ border-color: var(--jeep-yellow); }
+  .quick-btn:active{ transform: scale(0.95); }
+  .quick-btn.selected{
+    background: var(--jeep-yellow);
+    color: var(--ink);
+    border-color: var(--jeep-yellow);
+  }
+
+  /* Receipt / resibo */
+  .resibo{
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 4px;
+    padding: 22px 20px;
+    font-family: 'Consolas','Courier New',monospace;
+    position:relative;
+    box-shadow: 0 14px 30px rgba(0,0,0,0.35);
+    background-image: repeating-linear-gradient(transparent, transparent 27px, rgba(0,0,0,0.045) 28px);
+  }
+  .resibo::before, .resibo::after{
+    content:"";
+    position:absolute; left:0; right:0; height:10px;
+    background: inherit;
+    background-image:
+      radial-gradient(circle at 8px 5px, var(--bg) 5px, transparent 5.5px),
+      radial-gradient(circle at 26px 5px, var(--bg) 5px, transparent 5.5px),
+      radial-gradient(circle at 44px 5px, var(--bg) 5px, transparent 5.5px),
+      radial-gradient(circle at 62px 5px, var(--bg) 5px, transparent 5.5px),
+      radial-gradient(circle at 80px 5px, var(--bg) 5px, transparent 5.5px);
+    background-repeat: repeat-x;
+    background-size: 90px 10px;
+  }
+  .resibo::before{ top:-1px; }
+  .resibo::after{ bottom:-1px; transform: rotate(180deg); }
+
+  .resibo .title{
+    text-align:center;
+    font-weight:700;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    font-size:13px;
+    margin-bottom: 4px;
+  }
+  .resibo .rule{
+    border:none;
+    border-top: 1px dashed rgba(42,33,24,0.35);
+    margin: 10px 0;
+  }
+  .line{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    padding: 3px 0;
+  }
+  .line span:last-child{ font-weight:700; }
+  .line.small{ font-size:12.5px; color: rgba(42,33,24,0.75); }
+
+  .sukli-block{
+    text-align:center;
+    padding: 14px 0 6px;
+  }
+  .sukli-label{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.16em;
+    color: rgba(42,33,24,0.6);
+  }
+  .sukli-amount{
+    font-size: 40px;
+    font-weight:700;
+    color: var(--teal);
+    letter-spacing:-0.02em;
+  }
+  .sukli-amount.short{ color: var(--red); }
+
+  .breakdown{
+    margin-top: 10px;
+  }
+  .breakdown .heading{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color: rgba(42,33,24,0.55);
+    margin-bottom:6px;
+  }
+  .denom-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:13.5px;
+    padding: 2px 0;
+  }
+  .denom-row .tag{
+    display:inline-block;
+    min-width:56px;
+  }
+
+  .status{
+    text-align:center;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:.04em;
+    padding: 10px 0 2px;
+  }
+  .status.ok{ color: var(--teal); }
+  .status.short{ color: var(--red); }
+  .status.exact{ color: var(--jeep-orange); }
+
+  .footer-note{
+    text-align:center;
+    font-size:11px;
+    color: rgba(244,236,216,0.35);
+    margin-top: 18px;
+  }
+
+  .install-btn{
+    display:none;
+    width:100%;
+    margin-top: 18px;
+    background: var(--jeep-orange);
+    color: var(--paper);
+    border:none;
+    border-radius: 12px;
+    padding: 13px 16px;
+    font-size: 14px;
+    font-weight:700;
+    letter-spacing:.02em;
+    cursor:pointer;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition: background .15s, transform .08s;
+  }
+  .install-btn:hover{ background:#c9531f; }
+  .install-btn:active{ transform: scale(0.97); }
+  .install-btn.show{ display:flex; }
+  .install-btn .icon{ font-size:16px; }
+
+  .ios-toast{
+    display:none;
+    margin-top: 12px;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height:1.5;
+    color: rgba(244,236,216,0.85);
+  }
+  .ios-toast.show{ display:block; }
+  .ios-toast b{ color: var(--jeep-yellow); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Para / Sukli</div>
+  <h1>Sukli Calculator</h1>
+  <div class="sub">Itype ang mga pamasahe, ilagay ang bayad, otomatikong lalabas ang sukli.</div>
+
+  <div class="panel">
+    <label for="fareInput">Pamasahe (e.g. 15+13+24)</label>
+    <div class="fare-row">
+      <input type="text" id="fareInput" inputmode="decimal" placeholder="15+13+24" autocomplete="off">
+    </div>
+    <div class="hint" id="fareHint">Total: ₱0.00</div>
+  </div>
+
+  <div class="panel">
+    <label for="cashInput">Binayad</label>
+    <input type="number" id="cashInput" inputmode="decimal" placeholder="100" step="0.01" min="0">
+    <div class="quick-grid" id="quickGrid"></div>
+  </div>
+
+  <div class="resibo">
+    <div class="title">Resibo</div>
+    <div class="line"><span>Total Pamasahe</span><span id="rTotal">₱0.00</span></div>
+    <div class="line"><span>Binayad</span><span id="rCash">₱0.00</span></div>
+    <hr class="rule">
+    <div class="sukli-block">
+      <div class="sukli-label" id="sukliLabel">Sukli</div>
+      <div class="sukli-amount" id="sukliAmount">₱0.00</div>
+    </div>
+    <div class="status" id="statusMsg"></div>
+
+    <div class="breakdown" id="breakdownBlock" style="display:none;">
+      <hr class="rule">
+      <div class="heading">Hulugan (denominations)</div>
+      <div id="breakdownList"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">Gamitin ang + para sa dagdag na pasahero &middot; halimbawa: 15+13+24</div>
+
+  <button type="button" class="install-btn" id="installBtn"><span class="icon">⬇</span> I-install ang App</button>
+  <div class="ios-toast" id="iosToast">
+    Para i-install sa iPhone/iPad: pindutin ang <b>Share</b> button sa Safari, tapos piliin ang <b>"Add to Home Screen"</b>.
+  </div>
+
+</div>
+
+<script>
+const fareInput = document.getElementById('fareInput');
+const cashInput = document.getElementById('cashInput');
+const fareHint = document.getElementById('fareHint');
+const rTotal = document.getElementById('rTotal');
+const rCash = document.getElementById('rCash');
+const sukliAmount = document.getElementById('sukliAmount');
+const sukliLabel = document.getElementById('sukliLabel');
+const statusMsg = document.getElementById('statusMsg');
+const breakdownBlock = document.getElementById('breakdownBlock');
+const breakdownList = document.getElementById('breakdownList');
+
+const DENOMS = [1000,500,200,100,50,20,10,5,1,0.25];
+const DENOM_LABEL = {
+  1000:'₱1000', 500:'₱500', 200:'₱200', 100:'₱100',
+  50:'₱50', 20:'₱20', 10:'₱10', 5:'₱5', 1:'₱1', 0.25:'25¢'
+};
+
+function peso(n){
+  const sign = n < 0 ? '-' : '';
+  return sign + '₱' + Math.abs(n).toFixed(2);
+}
+
+// Safely evaluate a string of numbers joined by + and - only
+function safeSum(expr){
+  if(!expr) return 0;
+  const cleaned = expr.replace(/\s+/g,'');
+  if(!/^[0-9.+\-]*$/.test(cleaned)) return null;
+  if(cleaned === '' || cleaned === '-') return 0;
+  // split keeping sign
+  const tokens = cleaned.match(/[+-]?(\d+(\.\d+)?|\.\d+)/g);
+  if(!tokens) return 0;
+  return tokens.reduce((sum, t) => sum + parseFloat(t), 0);
+}
+
+function breakdownChange(amountCentavos){
+  // amountCentavos: integer centavos to keep it exact
+  let remaining = amountCentavos;
+  const rows = [];
+  for(const d of DENOMS){
+    const dCent = Math.round(d * 100);
+    const count = Math.floor(remaining / dCent);
+    if(count > 0){
+      rows.push({denom:d, count});
+      remaining -= count * dCent;
+    }
+  }
+  return rows;
+}
+
+function update(){
+  const fareExpr = fareInput.value;
+  const total = safeSum(fareExpr);
+
+  if(total === null){
+    fareHint.textContent = 'Invalid input — gamitin lang ang numero at +';
+    fareHint.style.color = '#c0392b';
+  } else {
+    fareHint.textContent = 'Total: ' + peso(total);
+    fareHint.style.color = 'rgba(244,236,216,0.4)';
+  }
+
+  const validTotal = total === null ? 0 : total;
+  const cash = parseFloat(cashInput.value);
+  const validCash = isNaN(cash) ? 0 : cash;
+
+  rTotal.textContent = peso(validTotal);
+  rCash.textContent = peso(validCash);
+
+  const diffCentavos = Math.round(validCash * 100) - Math.round(validTotal * 100);
+  const diff = diffCentavos / 100;
+
+  if(cashInput.value === '' || total === null){
+    sukliLabel.textContent = 'Sukli';
+    sukliAmount.textContent = '₱0.00';
+    sukliAmount.classList.remove('short');
+    statusMsg.textContent = '';
+    breakdownBlock.style.display = 'none';
+    return;
+  }
+
+  if(diffCentavos < 0){
+    sukliLabel.textContent = 'Kulang';
+    sukliAmount.textContent = peso(diff);
+    sukliAmount.classList.add('short');
+    statusMsg.textContent = 'KULANG NG ' + peso(-diff);
+    statusMsg.className = 'status short';
+    breakdownBlock.style.display = 'none';
+  } else if(diffCentavos === 0){
+    sukliLabel.textContent = 'Sukli';
+    sukliAmount.textContent = '₱0.00';
+    sukliAmount.classList.remove('short');
+    statusMsg.textContent = 'SAKTO';
+    statusMsg.className = 'status exact';
+    breakdownBlock.style.display = 'none';
+  } else {
+    sukliLabel.textContent = 'Sukli';
+    sukliAmount.textContent = peso(diff);
+    sukliAmount.classList.remove('short');
+    statusMsg.textContent = 'MAY SUKLI';
+    statusMsg.className = 'status ok';
+
+    const rows = breakdownChange(diffCentavos);
+    if(rows.length){
+      breakdownList.innerHTML = rows.map(r =>
+        `<div class="denom-row"><span class="tag">${DENOM_LABEL[r.denom]}</span><span>x ${r.count}</span></div>`
+      ).join('');
+      breakdownBlock.style.display = 'block';
+    } else {
+      breakdownBlock.style.display = 'none';
+    }
+  }
+}
+
+const QUICK_AMOUNTS = [10,20,30,40,50,60,70,80,100,200,500,1000];
+const quickGrid = document.getElementById('quickGrid');
+
+function renderQuickButtons(){
+  quickGrid.innerHTML = QUICK_AMOUNTS.map(a =>
+    `<button type="button" class="quick-btn" data-amount="${a}">₱${a}</button>`
+  ).join('');
+}
+renderQuickButtons();
+
+function markSelected(amount){
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.classList.toggle('selected', parseFloat(btn.dataset.amount) === amount);
+  });
+}
+
+quickGrid.addEventListener('click', (e) => {
+  const btn = e.target.closest('.quick-btn');
+  if(!btn) return;
+  const amount = parseFloat(btn.dataset.amount);
+  cashInput.value = amount;
+  markSelected(amount);
+  update();
+});
+
+fareInput.addEventListener('input', update);
+cashInput.addEventListener('input', () => { markSelected(parseFloat(cashInput.value)); update(); });
+update();
+
+/* ---------- PWA support ---------- */
+(function setupPWA(){
+  // Register the service worker (needs https or localhost — won't work on file://)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      // Silently ignore — install features need https/localhost hosting, not file://
+    });
+  }
+
+  const installBtn = document.getElementById('installBtn');
+  const iosToast = document.getElementById('iosToast');
+  let deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.classList.add('show');
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      installBtn.classList.remove('show');
+    }
+    deferredPrompt = null;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    installBtn.classList.remove('show');
+    iosToast.classList.remove('show');
+  });
+
+  // iOS Safari has no beforeinstallprompt — show manual instructions instead
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isIOS && !isStandalone) {
+    iosToast.classList.add('show');
+  }
+})();
+</script>
+</body>
+</html>
