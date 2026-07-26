@@ -114,6 +114,32 @@
     color: rgba(244,236,216,0.55);
     margin-top: 2px;
   }
+  .session-types{
+    margin-top: 10px;
+  }
+  .session-types:not(:empty){
+    border-top: 1px solid rgba(244,236,216,0.12);
+    padding-top: 8px;
+  }
+  .type-total-row{
+    display:flex;
+    justify-content:space-between;
+    font-size: 12.5px;
+    padding: 3px 0;
+    color: rgba(244,236,216,0.8);
+  }
+  .type-total-row span:first-child{
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    font-size:11px;
+    color: var(--jeep-yellow);
+    font-weight:700;
+  }
+  .type-total-row span:last-child{
+    font-family:'Consolas','Courier New',monospace;
+    font-weight:700;
+    color: var(--teal);
+  }
   .session-log{
     margin-top: 10px;
     max-height: 140px;
@@ -767,6 +793,7 @@
     </div>
     <div class="session-amount" id="sessionTotal">₱0.00</div>
     <div class="session-count" id="sessionCount">0 na benta</div>
+    <div class="session-types" id="sessionTypes"></div>
     <div class="session-log" id="sessionLog"></div>
   </div>
 
@@ -1278,11 +1305,44 @@ resetBtn.addEventListener('click', () => {
 
 doneBtn.addEventListener('click', () => {
   if(doneBtn.disabled) return;
-  addToSession(safeSum(fareInput.value) || 0);
+  const fareTotal = safeSum(fareInput.value) || 0;
+  const typeBreakdown = computeTypeBreakdownCentavos(fareTotal);
+  addToSession(fareTotal, typeBreakdown);
   showFlash('Sale complete — bagong benta');
   clearForm();
   fareInput.focus();
 });
+
+const SEPARATED_TYPE = 'Sigarilyo';
+const OTHER_BUCKET_LABEL = 'Iba pang Benta';
+
+function computeTypeBreakdownCentavos(fareTotal){
+  const items = loadItems();
+  const itemsById = {};
+  items.forEach(it => { itemsById[it.id] = it; });
+
+  const breakdown = {};
+  let itemsSumCentavos = 0;
+  for(const [id, qty] of Object.entries(itemQuantities)){
+    if(!qty) continue;
+    const it = itemsById[id];
+    if(!it) continue;
+    const cents = Math.round(it.price * 100) * qty;
+    const bucket = (it.type || '').trim().toLowerCase() === SEPARATED_TYPE.toLowerCase()
+      ? SEPARATED_TYPE
+      : OTHER_BUCKET_LABEL;
+    breakdown[bucket] = (breakdown[bucket] || 0) + cents;
+    itemsSumCentavos += cents;
+  }
+
+  // Anything typed manually that isn't accounted for by tracked items goes into the "Iba pang Benta" bucket
+  const totalCentavos = Math.round(fareTotal * 100);
+  const leftover = totalCentavos - itemsSumCentavos;
+  if(leftover > 0){
+    breakdown[OTHER_BUCKET_LABEL] = (breakdown[OTHER_BUCKET_LABEL] || 0) + leftover;
+  }
+  return breakdown;
+}
 
 /* ---------- Session Total (today's earnings) ---------- */
 const sessionTotalEl = document.getElementById('sessionTotal');
@@ -1310,10 +1370,11 @@ function loadSession(){
     if(data && data.count > 0){
       archiveDay(data);
     }
-    data = { date: todayKey(), totalCentavos: 0, count: 0, entries: [] };
+    data = { date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {} };
     saveSession(data);
   }
   if(!data.entries) data.entries = [];
+  if(!data.byType) data.byType = {};
   return data;
 }
 
@@ -1343,7 +1404,7 @@ function saveHistory(h){
 function archiveDay(data){
   const history = loadHistory();
   const existingIdx = history.findIndex(d => d.date === data.date);
-  const entry = { date: data.date, totalCentavos: data.totalCentavos, count: data.count };
+  const entry = { date: data.date, totalCentavos: data.totalCentavos, count: data.count, byType: data.byType || {} };
   if(existingIdx >= 0){ history[existingIdx] = entry; } else { history.push(entry); }
   history.sort((a,b) => a.date < b.date ? 1 : -1);
   saveHistory(history.slice(0, 60));
@@ -1387,6 +1448,7 @@ historyClearBtn.addEventListener('click', () => {
 });
 
 const sessionLogEl = document.getElementById('sessionLog');
+const sessionTypesEl = document.getElementById('sessionTypes');
 
 function renderSession(){
   const data = loadSession();
@@ -1394,17 +1456,29 @@ function renderSession(){
   sessionCountEl.textContent = data.count + (data.count === 1 ? ' na benta' : ' na benta');
   sessionDateEl.textContent = todayLabel();
 
+  const types = Object.keys(data.byType || {}).sort((a,b) => (data.byType[b]||0) - (data.byType[a]||0));
+  if(types.length === 0){
+    sessionTypesEl.innerHTML = '';
+  } else {
+    sessionTypesEl.innerHTML = types.map(t =>
+      `<div class="type-total-row"><span>${escapeHtml(t)}</span><span>${peso((data.byType[t]||0)/100)}</span></div>`
+    ).join('');
+  }
+
   const entries = data.entries.slice(-20).reverse();
   sessionLogEl.innerHTML = entries.map(en =>
     `<div class="log-row"><span class="log-time">${en.time}</span><span class="log-amount">${peso(en.amountCentavos/100)}</span></div>`
   ).join('');
 }
 
-function addToSession(fareTotal){
+function addToSession(fareTotal, typeBreakdownCentavos){
   const data = loadSession();
   const amountCentavos = Math.round(fareTotal * 100);
   data.totalCentavos += amountCentavos;
   data.count += 1;
+  for(const [type, cents] of Object.entries(typeBreakdownCentavos || {})){
+    data.byType[type] = (data.byType[type] || 0) + cents;
+  }
   data.entries.push({
     time: new Date().toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' }),
     amountCentavos: amountCentavos
@@ -1419,7 +1493,7 @@ sessionClearBtn.addEventListener('click', () => {
   if(current.count > 0){
     archiveDay(current);
   }
-  saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [] });
+  saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {} });
   renderSession();
   showFlash('Bagong araw simula');
 });
