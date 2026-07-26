@@ -127,7 +127,9 @@
     font-size: 12.5px;
     padding: 3px 0;
     color: rgba(244,236,216,0.8);
+    margin-top: 6px;
   }
+  .type-total-row:first-child{ margin-top:0; }
   .type-total-row span:first-child{
     text-transform:uppercase;
     letter-spacing:.04em;
@@ -139,6 +141,11 @@
     font-family:'Consolas','Courier New',monospace;
     font-weight:700;
     color: var(--teal);
+  }
+  .type-item-row{
+    font-size: 11.5px;
+    color: rgba(244,236,216,0.55);
+    padding: 1px 0 1px 10px;
   }
   .session-log{
     margin-top: 10px;
@@ -1306,8 +1313,8 @@ resetBtn.addEventListener('click', () => {
 doneBtn.addEventListener('click', () => {
   if(doneBtn.disabled) return;
   const fareTotal = safeSum(fareInput.value) || 0;
-  const typeBreakdown = computeTypeBreakdownCentavos(fareTotal);
-  addToSession(fareTotal, typeBreakdown);
+  const saleDetails = computeSaleDetails(fareTotal);
+  addToSession(fareTotal, saleDetails);
   showFlash('Sale complete — bagong benta');
   clearForm();
   fareInput.focus();
@@ -1315,14 +1322,18 @@ doneBtn.addEventListener('click', () => {
 
 const SEPARATED_TYPE = 'Sigarilyo';
 const OTHER_BUCKET_LABEL = 'Iba pang Benta';
+const UNKNOWN_ITEM_LABEL = 'Unknown';
 
-function computeTypeBreakdownCentavos(fareTotal){
+function computeSaleDetails(fareTotal){
   const items = loadItems();
   const itemsById = {};
   items.forEach(it => { itemsById[it.id] = it; });
 
-  const breakdown = {};
+  const byType = {};
+  const itemSummary = {};
   let itemsSumCentavos = 0;
+  let itemTermsCount = 0;
+
   for(const [id, qty] of Object.entries(itemQuantities)){
     if(!qty) continue;
     const it = itemsById[id];
@@ -1331,17 +1342,26 @@ function computeTypeBreakdownCentavos(fareTotal){
     const bucket = (it.type || '').trim().toLowerCase() === SEPARATED_TYPE.toLowerCase()
       ? SEPARATED_TYPE
       : OTHER_BUCKET_LABEL;
-    breakdown[bucket] = (breakdown[bucket] || 0) + cents;
+    byType[bucket] = (byType[bucket] || 0) + cents;
+    if(!itemSummary[bucket]) itemSummary[bucket] = {};
+    itemSummary[bucket][it.name] = (itemSummary[bucket][it.name] || 0) + qty;
     itemsSumCentavos += cents;
+    itemTermsCount += qty;
   }
 
-  // Anything typed manually that isn't accounted for by tracked items goes into the "Iba pang Benta" bucket
+  // Terms typed manually (not tapped from the item list) are labeled "Unknown"
+  const totalTerms = tokenizeExpr(fareInput.value).length;
   const totalCentavos = Math.round(fareTotal * 100);
-  const leftover = totalCentavos - itemsSumCentavos;
-  if(leftover > 0){
-    breakdown[OTHER_BUCKET_LABEL] = (breakdown[OTHER_BUCKET_LABEL] || 0) + leftover;
+  const leftoverCentavos = Math.max(0, totalCentavos - itemsSumCentavos);
+  const unknownCount = Math.max(0, totalTerms - itemTermsCount);
+
+  if(unknownCount > 0){
+    byType[OTHER_BUCKET_LABEL] = (byType[OTHER_BUCKET_LABEL] || 0) + leftoverCentavos;
+    if(!itemSummary[OTHER_BUCKET_LABEL]) itemSummary[OTHER_BUCKET_LABEL] = {};
+    itemSummary[OTHER_BUCKET_LABEL][UNKNOWN_ITEM_LABEL] = (itemSummary[OTHER_BUCKET_LABEL][UNKNOWN_ITEM_LABEL] || 0) + unknownCount;
   }
-  return breakdown;
+
+  return { byType, itemSummary, itemCount: totalTerms || 1 };
 }
 
 /* ---------- Session Total (today's earnings) ---------- */
@@ -1370,11 +1390,12 @@ function loadSession(){
     if(data && data.count > 0){
       archiveDay(data);
     }
-    data = { date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {} };
+    data = { date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {}, itemSummary: {} };
     saveSession(data);
   }
   if(!data.entries) data.entries = [];
   if(!data.byType) data.byType = {};
+  if(!data.itemSummary) data.itemSummary = {};
   return data;
 }
 
@@ -1404,7 +1425,7 @@ function saveHistory(h){
 function archiveDay(data){
   const history = loadHistory();
   const existingIdx = history.findIndex(d => d.date === data.date);
-  const entry = { date: data.date, totalCentavos: data.totalCentavos, count: data.count, byType: data.byType || {} };
+  const entry = { date: data.date, totalCentavos: data.totalCentavos, count: data.count, byType: data.byType || {}, itemSummary: data.itemSummary || {} };
   if(existingIdx >= 0){ history[existingIdx] = entry; } else { history.push(entry); }
   history.sort((a,b) => a.date < b.date ? 1 : -1);
   saveHistory(history.slice(0, 60));
@@ -1460,9 +1481,14 @@ function renderSession(){
   if(types.length === 0){
     sessionTypesEl.innerHTML = '';
   } else {
-    sessionTypesEl.innerHTML = types.map(t =>
-      `<div class="type-total-row"><span>${escapeHtml(t)}</span><span>${peso((data.byType[t]||0)/100)}</span></div>`
-    ).join('');
+    sessionTypesEl.innerHTML = types.map(t => {
+      const itemsForType = (data.itemSummary && data.itemSummary[t]) || {};
+      const itemNames = Object.keys(itemsForType).sort((a,b) => itemsForType[b] - itemsForType[a]);
+      const itemLines = itemNames.map(name =>
+        `<div class="type-item-row"><span>${itemsForType[name]}x ${escapeHtml(name)}</span></div>`
+      ).join('');
+      return `<div class="type-total-row"><span>${escapeHtml(t)}</span><span>${peso((data.byType[t]||0)/100)}</span></div>${itemLines}`;
+    }).join('');
   }
 
   const entries = data.entries.slice(-20).reverse();
@@ -1471,13 +1497,20 @@ function renderSession(){
   ).join('');
 }
 
-function addToSession(fareTotal, typeBreakdownCentavos){
+function addToSession(fareTotal, saleDetails){
   const data = loadSession();
   const amountCentavos = Math.round(fareTotal * 100);
   data.totalCentavos += amountCentavos;
-  data.count += 1;
-  for(const [type, cents] of Object.entries(typeBreakdownCentavos || {})){
+  data.count += (saleDetails.itemCount || 1);
+  for(const [type, cents] of Object.entries(saleDetails.byType || {})){
     data.byType[type] = (data.byType[type] || 0) + cents;
+  }
+  for(const [bucket, names] of Object.entries(saleDetails.itemSummary || {})){
+    if(!data.itemSummary[bucket]) data.itemSummary[bucket] = {};
+    for(const [name, qty] of Object.entries(names)){
+      if(!qty) continue;
+      data.itemSummary[bucket][name] = (data.itemSummary[bucket][name] || 0) + qty;
+    }
   }
   data.entries.push({
     time: new Date().toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' }),
@@ -1493,7 +1526,7 @@ sessionClearBtn.addEventListener('click', () => {
   if(current.count > 0){
     archiveDay(current);
   }
-  saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {} });
+  saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {}, itemSummary: {} });
   renderSession();
   showFlash('Bagong araw simula');
 });
