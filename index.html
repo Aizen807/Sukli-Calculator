@@ -347,12 +347,12 @@
     flex-shrink:0;
   }
   .step-btn{
-    width:30px; height:30px;
+    width:36px; height:36px;
     border-radius: 8px;
     border: 1px solid var(--line);
     background: rgba(0,0,0,0.22);
     color: var(--paper);
-    font-size: 16px;
+    font-size: 18px;
     font-weight:700;
     cursor:pointer;
     display:flex; align-items:center; justify-content:center;
@@ -362,9 +362,9 @@
   .step-btn.minus:hover{ border-color: var(--jeep-orange); color: var(--jeep-orange); }
   .step-btn.minus:disabled{ opacity:0.25; cursor:not-allowed; }
   .step-qty{
-    min-width:16px;
+    min-width:20px;
     text-align:center;
-    font-size: 13px;
+    font-size: 14px;
     font-weight:700;
     color: var(--jeep-yellow);
     font-family:'Consolas','Courier New',monospace;
@@ -1003,9 +1003,10 @@ function renderTypeChips(items){
   }
   typeChipRow.style.display = 'flex';
   const chips = [{ label: 'Lahat', value: null }, ...types.map(t => ({ label: t, value: t }))];
-  typeChipRow.innerHTML = chips.map(c =>
-    `<button type="button" class="type-chip ${activeTypeFilter === c.value ? 'active' : ''}" data-type="${c.value === null ? '' : escapeHtml(c.value)}">${escapeHtml(c.label)}</button>`
-  ).join('');
+  typeChipRow.innerHTML = chips.map(c => {
+    const isActive = activeTypeFilter === c.value;
+    return `<button type="button" class="type-chip ${isActive ? 'active' : ''}" data-type="${c.value === null ? 'all' : escapeHtml(c.value)}">${escapeHtml(c.label)}</button>`;
+  }).join('');
 }
 
 function renderItems(){
@@ -1073,7 +1074,8 @@ itemsList.addEventListener('click', (e) => {
 typeChipRow.addEventListener('click', (e) => {
   const chip = e.target.closest('.type-chip');
   if(!chip) return;
-  activeTypeFilter = chip.dataset.type || null;
+  // FIX: Handle 'all' value properly
+  activeTypeFilter = chip.dataset.type === 'all' ? null : chip.dataset.type;
   renderItems();
 });
 
@@ -1081,7 +1083,12 @@ itemSearch.addEventListener('input', renderItems);
 
 itemsSettingsBtn.addEventListener('click', () => {
   settingsPanel.classList.toggle('show');
-  if(settingsPanel.classList.contains('show')) renderSettingsList();
+  if(settingsPanel.classList.contains('show')) {
+    renderSettingsList();
+  } else {
+    // FIX: Re-render items when settings closes to refresh view
+    renderItems();
+  }
 });
 
 function populateTypeDatalist(){
@@ -1127,17 +1134,24 @@ addItemBtn.addEventListener('click', () => {
   if(editingItemId){
     const idx = items.findIndex(it => it.id === editingItemId);
     if(idx >= 0){ items[idx] = { id: editingItemId, name, price, type }; }
+    // FIX: Reset editing state after update
     editingItemId = null;
     addItemBtn.textContent = '+ Idagdag';
+    // FIX: Clear form fields after update
+    newItemType.value = '';
+    newItemName.value = '';
+    newItemPrice.value = '';
   } else {
     items.push({ id: 'i' + Date.now(), name, price, type });
+    // FIX: Clear form fields after adding
+    newItemType.value = '';
+    newItemName.value = '';
+    newItemPrice.value = '';
   }
   saveItems(items);
-  newItemType.value = '';
-  newItemName.value = '';
-  newItemPrice.value = '';
   renderSettingsList();
   renderItems();
+  showFlash(editingItemId ? 'Item na-update!' : 'Item naidagdag!');
 });
 
 settingsList.addEventListener('click', (e) => {
@@ -1156,6 +1170,7 @@ settingsList.addEventListener('click', (e) => {
     }
     renderSettingsList();
     renderItems();
+    showFlash('Item tinanggal!');
     return;
   }
   const info = e.target.closest('.s-info');
@@ -1282,8 +1297,19 @@ quickGrid.addEventListener('click', (e) => {
   update();
 });
 
+cashInput.addEventListener('input', () => {
+  const val = parseFloat(cashInput.value);
+  // FIX: Only mark selected if the input exactly matches a quick amount
+  const isExactMatch = QUICK_AMOUNTS.some(a => Math.abs(a - val) < 0.001);
+  if (isExactMatch && !isNaN(val)) {
+    markSelected(val);
+  } else {
+    markSelected(null); // Clear all highlights
+  }
+  update();
+});
+
 fareInput.addEventListener('input', () => { update(); renderItems(); });
-cashInput.addEventListener('input', () => { markSelected(parseFloat(cashInput.value)); update(); });
 
 /* ---------- Reset / Complete Sale ---------- */
 const resetBtn = document.getElementById('resetBtn');
@@ -1318,12 +1344,14 @@ doneBtn.addEventListener('click', () => {
   showFlash('Sale complete — bagong benta');
   clearForm();
   fareInput.focus();
+  update(); // FIX: Ensure button state is correct after clearing
 });
 
 const SEPARATED_TYPE = 'Sigarilyo';
 const OTHER_BUCKET_LABEL = 'Iba pang Benta';
 const UNKNOWN_ITEM_LABEL = 'Unknown';
 
+// FIX: Improved computeSaleDetails to better handle unknown items
 function computeSaleDetails(fareTotal){
   const items = loadItems();
   const itemsById = {};
@@ -1332,36 +1360,85 @@ function computeSaleDetails(fareTotal){
   const byType = {};
   const itemSummary = {};
   let itemsSumCentavos = 0;
-  let itemTermsCount = 0;
+  let totalItemCount = 0;
 
+  // Track which item IDs were used and how many times
+  const usedQuantities = {};
+  
+  // First, process all known items from itemQuantities
   for(const [id, qty] of Object.entries(itemQuantities)){
     if(!qty) continue;
     const it = itemsById[id];
     if(!it) continue;
+    
     const cents = Math.round(it.price * 100) * qty;
     const bucket = (it.type || '').trim().toLowerCase() === SEPARATED_TYPE.toLowerCase()
       ? SEPARATED_TYPE
       : OTHER_BUCKET_LABEL;
+      
     byType[bucket] = (byType[bucket] || 0) + cents;
     if(!itemSummary[bucket]) itemSummary[bucket] = {};
     itemSummary[bucket][it.name] = (itemSummary[bucket][it.name] || 0) + qty;
     itemsSumCentavos += cents;
-    itemTermsCount += qty;
+    totalItemCount += qty;
+    usedQuantities[id] = qty;
   }
 
-  // Terms typed manually (not tapped from the item list) are labeled "Unknown"
-  const totalTerms = tokenizeExpr(fareInput.value).length;
+  // Now handle manually typed terms
+  const tokens = tokenizeExpr(fareInput.value);
   const totalCentavos = Math.round(fareTotal * 100);
   const leftoverCentavos = Math.max(0, totalCentavos - itemsSumCentavos);
-  const unknownCount = Math.max(0, totalTerms - itemTermsCount);
-
-  if(unknownCount > 0){
-    byType[OTHER_BUCKET_LABEL] = (byType[OTHER_BUCKET_LABEL] || 0) + leftoverCentavos;
-    if(!itemSummary[OTHER_BUCKET_LABEL]) itemSummary[OTHER_BUCKET_LABEL] = {};
-    itemSummary[OTHER_BUCKET_LABEL][UNKNOWN_ITEM_LABEL] = (itemSummary[OTHER_BUCKET_LABEL][UNKNOWN_ITEM_LABEL] || 0) + unknownCount;
+  
+  // Count how many manual terms we need to account for
+  // We need to match manual terms to items that might have been added multiple times
+  let manualTerms = [];
+  let tempQuantities = {...itemQuantities};
+  
+  // Go through each token and try to match it to an item
+  for(const token of tokens) {
+    const price = parseFloat(token);
+    if(isNaN(price)) continue;
+    
+    // Try to find an item with this price that still has quantity available
+    let found = false;
+    const priceCent = Math.round(price * 100);
+    
+    for(const [id, qty] of Object.entries(tempQuantities)) {
+      if(qty <= 0) continue;
+      const it = itemsById[id];
+      if(!it) continue;
+      if(Math.round(it.price * 100) === priceCent) {
+        // This item matches, decrement its remaining quantity
+        tempQuantities[id] = qty - 1;
+        found = true;
+        break;
+      }
+    }
+    
+    if(!found) {
+      // Couldn't match to any item - mark as unknown
+      manualTerms.push(price);
+    }
   }
 
-  return { byType, itemSummary, itemCount: totalTerms || 1 };
+  // Add unknown terms to the totals
+  if(manualTerms.length > 0) {
+    const unknownTotal = manualTerms.reduce((sum, p) => sum + p, 0);
+    const unknownCent = Math.round(unknownTotal * 100);
+    
+    // Only add if there's leftover or we have unknown terms
+    if(unknownCent > 0) {
+      byType[OTHER_BUCKET_LABEL] = (byType[OTHER_BUCKET_LABEL] || 0) + unknownCent;
+      if(!itemSummary[OTHER_BUCKET_LABEL]) itemSummary[OTHER_BUCKET_LABEL] = {};
+      itemSummary[OTHER_BUCKET_LABEL][UNKNOWN_ITEM_LABEL] = (itemSummary[OTHER_BUCKET_LABEL][UNKNOWN_ITEM_LABEL] || 0) + manualTerms.length;
+    }
+  }
+
+  return { 
+    byType, 
+    itemSummary, 
+    itemCount: Math.max(1, totalItemCount + manualTerms.length)
+  };
 }
 
 /* ---------- Session Total (today's earnings) ---------- */
@@ -1466,6 +1543,7 @@ historyClearBtn.addEventListener('click', () => {
   if(!confirm('I-clear ang buong kasaysayan ng mga nakaraang araw? Hindi na ito mababawi.')) return;
   saveHistory([]);
   renderHistory();
+  showFlash('Kasaysayan na-clear!');
 });
 
 const sessionLogEl = document.getElementById('sessionLog');
@@ -1521,13 +1599,16 @@ function addToSession(fareTotal, saleDetails){
 }
 
 sessionClearBtn.addEventListener('click', () => {
-  if(!confirm('I-clear ang kabuuang kita ngayong araw?')) return;
+  if(!confirm('I-save ang kita ngayong araw at magsimula ng bagong araw? Hindi na ito mababawi.')) return;
   const current = loadSession();
   if(current.count > 0){
     archiveDay(current);
   }
+  // FIX: Reset item quantities when starting new day
+  itemQuantities = {};
   saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {}, itemSummary: {} });
   renderSession();
+  renderItems(); // Re-render to show quantities reset
   showFlash('Bagong araw simula');
 });
 
