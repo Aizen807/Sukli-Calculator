@@ -67,6 +67,11 @@
     padding: 16px 18px;
     margin-bottom: 18px;
   }
+  .session-card.sigarilyo-card{
+    background: linear-gradient(135deg, rgba(224,98,42,0.16), rgba(242,177,52,0.08));
+    border: 1px solid rgba(224,98,42,0.35);
+  }
+  .session-card.sigarilyo-card .session-amount{ color: var(--jeep-orange); }
   .session-top{
     display:flex;
     justify-content:space-between;
@@ -804,6 +809,17 @@
     <div class="session-log" id="sessionLog"></div>
   </div>
 
+  <div class="session-card sigarilyo-card">
+    <div class="session-top">
+      <div>
+        <div class="session-label">Kita Ngayong Araw sa Sigarilyo</div>
+      </div>
+    </div>
+    <div class="session-amount" id="sessionSigTotal">₱0.00</div>
+    <div class="session-count" id="sessionSigCount">0 na benta</div>
+    <div class="session-types" id="sessionSigItems"></div>
+  </div>
+
   <div class="history-panel" id="historyPanel">
     <div class="history-header">
       <span>Nakaraang mga Araw</span>
@@ -1467,12 +1483,23 @@ function loadSession(){
     if(data && data.count > 0){
       archiveDay(data);
     }
-    data = { date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {}, itemSummary: {} };
+    data = { date: todayKey(), totalCentavos: 0, count: 0, sigTotalCentavos: 0, sigCount: 0, entries: [], byType: {}, itemSummary: {} };
     saveSession(data);
   }
   if(!data.entries) data.entries = [];
   if(!data.byType) data.byType = {};
   if(!data.itemSummary) data.itemSummary = {};
+  // Migration: earlier version counted Sigarilyo inside the main total — split it out once, without losing today's already-tracked figures
+  if(data.sigTotalCentavos === undefined || data.sigCount === undefined){
+    const sigCents = (data.byType && data.byType[SEPARATED_TYPE]) || 0;
+    const sigItems = (data.itemSummary && data.itemSummary[SEPARATED_TYPE]) || {};
+    const sigCount = Object.values(sigItems).reduce((s,q) => s + q, 0);
+    data.sigTotalCentavos = sigCents;
+    data.sigCount = sigCount;
+    data.totalCentavos = Math.max(0, (data.totalCentavos || 0) - sigCents);
+    data.count = Math.max(0, (data.count || 0) - sigCount);
+    saveSession(data);
+  }
   return data;
 }
 
@@ -1502,7 +1529,15 @@ function saveHistory(h){
 function archiveDay(data){
   const history = loadHistory();
   const existingIdx = history.findIndex(d => d.date === data.date);
-  const entry = { date: data.date, totalCentavos: data.totalCentavos, count: data.count, byType: data.byType || {}, itemSummary: data.itemSummary || {} };
+  const entry = {
+    date: data.date,
+    totalCentavos: data.totalCentavos,
+    count: data.count,
+    sigTotalCentavos: data.sigTotalCentavos || 0,
+    sigCount: data.sigCount || 0,
+    byType: data.byType || {},
+    itemSummary: data.itemSummary || {}
+  };
   if(existingIdx >= 0){ history[existingIdx] = entry; } else { history.push(entry); }
   history.sort((a,b) => a.date < b.date ? 1 : -1);
   saveHistory(history.slice(0, 60));
@@ -1523,15 +1558,18 @@ function renderHistory(){
   }
   historyEmpty.style.display = 'none';
   const grandTotal = history.reduce((s,d) => s + d.totalCentavos, 0);
-  historyList.innerHTML = history.map(d =>
-    `<div class="history-row">
+  historyList.innerHTML = history.map(d => {
+    const sigCents = d.sigTotalCentavos || 0;
+    const sigLine = sigCents > 0 ? `<span class="h-count">Sigarilyo: ${peso(sigCents/100)}</span>` : '';
+    return `<div class="history-row">
        <div>
          <div class="h-date">${dateLabelFromKey(d.date)}</div>
          <span class="h-count">${d.count} na benta</span>
+         ${sigLine}
        </div>
        <div class="h-amount">${peso(d.totalCentavos/100)}</div>
-     </div>`
-  ).join('') + `<div class="history-total-row"><span>Kabuuan (${history.length} araw)</span><span>${peso(grandTotal/100)}</span></div>`;
+     </div>`;
+  }).join('') + `<div class="history-total-row"><span>Kabuuan (${history.length} araw)</span><span>${peso(grandTotal/100)}</span></div>`;
 }
 
 historyToggleBtn.addEventListener('click', () => {
@@ -1548,14 +1586,20 @@ historyClearBtn.addEventListener('click', () => {
 
 const sessionLogEl = document.getElementById('sessionLog');
 const sessionTypesEl = document.getElementById('sessionTypes');
+const sessionSigTotalEl = document.getElementById('sessionSigTotal');
+const sessionSigCountEl = document.getElementById('sessionSigCount');
+const sessionSigItemsEl = document.getElementById('sessionSigItems');
 
 function renderSession(){
   const data = loadSession();
   sessionTotalEl.textContent = peso(data.totalCentavos / 100);
-  sessionCountEl.textContent = data.count + (data.count === 1 ? ' na benta' : ' na benta');
+  sessionCountEl.textContent = data.count + ' na benta';
   sessionDateEl.textContent = todayLabel();
 
-  const types = Object.keys(data.byType || {}).sort((a,b) => (data.byType[b]||0) - (data.byType[a]||0));
+  // Main card: everything except Sigarilyo, which now has its own dedicated card below
+  const types = Object.keys(data.byType || {})
+    .filter(t => t !== SEPARATED_TYPE)
+    .sort((a,b) => (data.byType[b]||0) - (data.byType[a]||0));
   if(types.length === 0){
     sessionTypesEl.innerHTML = '';
   } else {
@@ -1569,6 +1613,15 @@ function renderSession(){
     }).join('');
   }
 
+  // Sigarilyo card
+  sessionSigTotalEl.textContent = peso((data.sigTotalCentavos || 0) / 100);
+  sessionSigCountEl.textContent = (data.sigCount || 0) + ' na benta';
+  const sigItems = (data.itemSummary && data.itemSummary[SEPARATED_TYPE]) || {};
+  const sigNames = Object.keys(sigItems).sort((a,b) => sigItems[b] - sigItems[a]);
+  sessionSigItemsEl.innerHTML = sigNames.map(name =>
+    `<div class="type-item-row"><span>${sigItems[name]}x ${escapeHtml(name)}</span></div>`
+  ).join('');
+
   const entries = data.entries.slice(-20).reverse();
   sessionLogEl.innerHTML = entries.map(en =>
     `<div class="log-row"><span class="log-time">${en.time}</span><span class="log-amount">${peso(en.amountCentavos/100)}</span></div>`
@@ -1578,8 +1631,19 @@ function renderSession(){
 function addToSession(fareTotal, saleDetails){
   const data = loadSession();
   const amountCentavos = Math.round(fareTotal * 100);
-  data.totalCentavos += amountCentavos;
-  data.count += (saleDetails.itemCount || 1);
+
+  const sigCentsThisSale = (saleDetails.byType && saleDetails.byType[SEPARATED_TYPE]) || 0;
+  const mainCentsThisSale = Math.max(0, amountCentavos - sigCentsThisSale);
+
+  const sigItemsThisSale = (saleDetails.itemSummary && saleDetails.itemSummary[SEPARATED_TYPE]) || {};
+  const sigCountThisSale = Object.values(sigItemsThisSale).reduce((s,q) => s + q, 0);
+  const mainCountThisSale = Math.max(0, (saleDetails.itemCount || 1) - sigCountThisSale);
+
+  data.totalCentavos += mainCentsThisSale;
+  data.count += mainCountThisSale;
+  data.sigTotalCentavos = (data.sigTotalCentavos || 0) + sigCentsThisSale;
+  data.sigCount = (data.sigCount || 0) + sigCountThisSale;
+
   for(const [type, cents] of Object.entries(saleDetails.byType || {})){
     data.byType[type] = (data.byType[type] || 0) + cents;
   }
@@ -1606,7 +1670,7 @@ sessionClearBtn.addEventListener('click', () => {
   }
   // FIX: Reset item quantities when starting new day
   itemQuantities = {};
-  saveSession({ date: todayKey(), totalCentavos: 0, count: 0, entries: [], byType: {}, itemSummary: {} });
+  saveSession({ date: todayKey(), totalCentavos: 0, count: 0, sigTotalCentavos: 0, sigCount: 0, entries: [], byType: {}, itemSummary: {} });
   renderSession();
   renderItems(); // Re-render to show quantities reset
   showFlash('Bagong araw simula');
