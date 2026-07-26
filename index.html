@@ -929,23 +929,23 @@ function saveItems(items){
   try{ localStorage.setItem(ITEMS_KEY, JSON.stringify(items)); } catch(e){}
 }
 
-function itemQtyInExpr(price){
-  const tokens = tokenizeExpr(fareInput.value);
-  return tokens.filter(t => Math.abs(parseFloat(t) - price) < 0.001).length;
-}
+let itemQuantities = {}; // { itemId: qty } — tracked independently so items with matching prices don't get merged
 
-function addItemTerm(price){
+function addItemTerm(item){
+  itemQuantities[item.id] = (itemQuantities[item.id] || 0) + 1;
   const tokens = tokenizeExpr(fareInput.value);
-  tokens.push('+' + price);
+  tokens.push('+' + item.price);
   fareInput.value = tokensToExpr(tokens);
   update();
   renderItems();
 }
 
-function removeItemTerm(price){
+function removeItemTerm(item){
+  if(!itemQuantities[item.id]) return;
+  itemQuantities[item.id] -= 1;
   const tokens = tokenizeExpr(fareInput.value);
   for(let i = tokens.length - 1; i >= 0; i--){
-    if(Math.abs(parseFloat(tokens[i]) - price) < 0.001){
+    if(Math.abs(parseFloat(tokens[i]) - item.price) < 0.001){
       tokens.splice(i, 1);
       break;
     }
@@ -1005,16 +1005,16 @@ function renderItems(){
     if(group.length === 0) continue;
     html += `<div class="item-type-header">${escapeHtml(type)}</div>`;
     html += group.map(it => {
-      const qty = itemQtyInExpr(it.price);
+      const qty = itemQuantities[it.id] || 0;
       return `<div class="item-row">
         <div class="item-info">
           <div class="item-name">${escapeHtml(it.name)}</div>
           <div class="item-price">${peso(it.price)}</div>
         </div>
         <div class="item-stepper">
-          <button type="button" class="step-btn minus" data-price="${it.price}" ${qty === 0 ? 'disabled' : ''}>−</button>
+          <button type="button" class="step-btn minus" data-id="${it.id}" data-price="${it.price}" ${qty === 0 ? 'disabled' : ''}>−</button>
           <span class="step-qty">${qty}</span>
-          <button type="button" class="step-btn plus" data-price="${it.price}">+</button>
+          <button type="button" class="step-btn plus" data-id="${it.id}" data-price="${it.price}">+</button>
         </div>
       </div>`;
     }).join('');
@@ -1031,9 +1031,9 @@ function escapeHtml(str){
 itemsList.addEventListener('click', (e) => {
   const btn = e.target.closest('.step-btn');
   if(!btn) return;
-  const price = parseFloat(btn.dataset.price);
-  if(btn.classList.contains('plus')) addItemTerm(price);
-  else removeItemTerm(price);
+  const item = { id: btn.dataset.id, price: parseFloat(btn.dataset.price) };
+  if(btn.classList.contains('plus')) addItemTerm(item);
+  else removeItemTerm(item);
 });
 
 typeChipRow.addEventListener('click', (e) => {
@@ -1260,6 +1260,7 @@ function clearForm(){
   fareInput.value = '';
   cashInput.value = '';
   markSelected(null);
+  itemQuantities = {};
   update();
   renderItems();
 }
